@@ -21,6 +21,9 @@ namespace StemWizardPro2
 			
 			IO = new IOManager();
 			SetIOPanelDataToIOSettings( IO.LoadDefaultIO() );
+			UndoButton.Visible = false;
+			ExecuteButton.Visible = false;
+			executeStatusLabel.Visible = false;
 		}
 
 		public static IOManager IO;
@@ -111,6 +114,22 @@ namespace StemWizardPro2
 		private void ExecuteButton_Click(object sender, EventArgs e)
 		{
 			SessionInfo.ProcessUniqueFileNameList();
+			if (SessionInfo.HasFileHistory) UndoButton.Enabled = true;
+		}
+
+		private void UndoButton_Click(object sender, EventArgs e)
+		{
+			var status = SessionInfo.UndoExecute();
+			executeStatusLabel.Visible = true;
+			executeStatusLabel.ForeColor = status.success ? Color.Green : Color.Red;
+			executeStatusLabel.Text = status.message;
+			UndoButton.Visible = SessionInfo.HasFileHistory;
+			// return status
+		}
+
+		private void executeStatusLabel_Click(object sender, EventArgs e)
+		{
+			executeStatusLabel.Text = "";
 		}
 
 		#endregion
@@ -118,7 +137,8 @@ namespace StemWizardPro2
 		private void Scan()
 		{
 			listView1.Items.Clear();
-			AppManager.ScanDirectoryForValidFiles(listView1);
+			SessionInfo.GetFilesInDirectory(listView1);
+			ExecuteButton.Visible = listView1.Items.Count > 0;
 		}
 
 		private IOSettings IOFromDataGridView()
@@ -139,6 +159,11 @@ namespace StemWizardPro2
 			return currentSettings;
 		}
 
-		
-	}
+        private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+
+        
+    }
 }

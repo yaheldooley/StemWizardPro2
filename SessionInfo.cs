@@ -8,29 +8,56 @@ using System.Windows.Forms;
 
 namespace StemWizardPro2
 {
-	public static partial class SessionInfo
+	/// <summary>
+	/// Handles audio stem naming and moving. 
+	/// </summary>
+
+    public static partial class SessionInfo
 	{
-		//public static SessionInfo Instance;
-
 		public static string DirectoryPath;
-
 		public static string SessionName = "";
 
+		/// <summary>
+		/// The prefix will be added before the length in the filename
+		/// </summary>
 		public static string Prefix = "";
 		public static string Length = "";
+		/// <summary>
+		/// The suffix will be added after the length in the filename
+		/// </summary>
 		public static string Suffix = "";
+		/// <summary>
+		/// Character to be used for seperating or spacing words
+		/// </summary>
 		public static string SEP = "_";
 
+		/// <summary>
+		/// Determines files destination format
+		/// </summary>
 		public static ExtensionMode extensionMode = ExtensionMode.MatchFormat;
 
+		/// <summary>
+		/// If true, the file's length will be added to its new file name.
+		/// </summary>
 		public static bool DetectLength = true;
 
+		/// <summary>
+		/// List of all audio files in directory
+		/// </summary>
 		public static List<AudioData> AllAudioData = new List<AudioData>();
 
+		/// <summary>
+		/// Dictonary stores filename without channel extension as the key and channel extensions as values.
+		/// </summary>
 		private static Dictionary<string, List<AudioData>> FileNameDict = new Dictionary<string, List<AudioData>>();
+		public static bool HasFileHistory => FileNameDict.Count > 0;
+
+
 		public static List<AudioData> UniqueFileNameList = new List<AudioData>();
 
 		private static List<EntryStatus> EntryStatusList = new List<EntryStatus>();
+
+		
 
 		public static void GetFilesInDirectory(ListView listview)
 		{
@@ -52,7 +79,6 @@ namespace StemWizardPro2
 			// Get General Wave Data
 			for (int i = 0; i < filePaths.Length; i++) StoreAudioData(filePaths[i]);
 			
-
 			DetectAllChannelFormats();
 			CreateNewFilenamesForAll();
 
@@ -61,15 +87,12 @@ namespace StemWizardPro2
 				string[] row1 = { entry.secondMessage };
 				listview.Items.Add(entry.firstMessage).SubItems.AddRange(row1);
 
-				//listview.Items[entry.firstMessage].UseItemStyleForSubItems = false;
-
 				Color statusColor = Color.Green;
 				if (!entry.status) statusColor = Color.Red;
-				//listview.Items[entry.firstMessage].SubItems[0].ForeColor = statusColor;	
 			}
 
 
-			Console.WriteLine("Done");
+			//Console.WriteLine("Done");
 		}
 
 		private static void StoreAudioData(string s)
@@ -86,20 +109,19 @@ namespace StemWizardPro2
 			{
 				pcmFormat = PCMType.aif;
 			}
-			AudioData data = new AudioData();
 			IngestPCMData(Path.GetFullPath(s), pcmFormat);
 		}
 
 		private static void IngestPCMData(string path, PCMType audioFormat)
 		{
 			AudioData audio = new AudioData();
-			audio.fullPath = path;
-			audio.fileName = Path.GetFileNameWithoutExtension(path);
-			audio.InputType = Form1.IO.ParseFilenameForInputs(audio.fileName);
+			audio.originalfullPath = path;
+			audio.originalFileName = Path.GetFileNameWithoutExtension(path);
+			audio.InputType = Form1.IO.ParseFilenameForInputs(audio.originalFileName);
 			
 			if (audio.InputType == string.Empty)
 			{
-				AddEntryToListview(audio.fileName, "No matching input", false);
+				AddEntryToListview(audio.originalFileName, "No matching input", false);
 				return;
 			}
 			
@@ -135,7 +157,7 @@ namespace StemWizardPro2
 					}
 					catch
 					{
-						Console.Write("File {0} could not be read correctly: " + audio.fullPath);
+						Console.Write("File {0} could not be read correctly: " + audio.originalfullPath);
 						Console.ReadKey();
 					}
 					break;
@@ -168,17 +190,17 @@ namespace StemWizardPro2
 				audio = GetChannelPosition(audio);
 			}
 		
-			bool hasFileName = FileNameDict.ContainsKey(audio.fileName);
+			bool hasFileName = FileNameDict.ContainsKey(audio.originalFileName);
 			if (!hasFileName)
 			{
 				List<AudioData> newData = new List<AudioData>();
 				newData.Add(audio);
-				FileNameDict.Add(audio.fileName, newData);
+				FileNameDict.Add(audio.originalFileName, newData);
 			}
 
 			else if (hasFileName)
 			{
-				FileNameDict[audio.fileName].Add(audio);
+				FileNameDict[audio.originalFileName].Add(audio);
 			}
 
 			AllAudioData.Add(audio); // must happen later, make sure it can be added
@@ -186,11 +208,11 @@ namespace StemWizardPro2
 
 		private static AudioData GetChannelPosition(AudioData audio)
 		{
-			string ext = Path.GetExtension(audio.fileName);
+			string ext = Path.GetExtension(audio.originalFileName);
 			if (ChannelList.Contains(ext))
 			{
 				audio.channelExt = ext;
-				audio.fileName = audio.fileName.Replace(ext, "");
+				audio.originalFileName = audio.originalFileName.Replace(ext, "");
 				return audio;
 			}
 			
@@ -274,9 +296,9 @@ namespace StemWizardPro2
 					if (!UniqueFileNameList.Contains(data))
 					{
 						UniqueFileNameList.Add(data);
-						AddEntryToListview(data.fileName + data.channelExt, data.newFileName, true);
+						AddEntryToListview(data.originalFileName + data.channelExt, data.newFileName, true);
 					}
-					else AddEntryToListview(data.fileName + data.channelExt, $"{data.newFileName} conflicts, will be ignored", false);
+					else AddEntryToListview(data.originalFileName + data.channelExt, $"{data.newFileName} conflicts, will be ignored", false);
 				}
 			}
 		}
@@ -300,7 +322,7 @@ namespace StemWizardPro2
 
 				foreach(AudioData audio in UniqueFileNameList)
 				{
-					string currentFile = Path.GetFileName(audio.fullPath);
+					string currentFile = Path.GetFileName(audio.originalfullPath);
 					string ext = $".{audio.pcmType}";
 					
 					if (DetectLength)
@@ -311,11 +333,16 @@ namespace StemWizardPro2
 						{
 							Directory.CreateDirectory(lengthFolder);
 						}
+
+						string newFilePath = lengthFolder + "\\" + audio.newFileName + ext;
 						//File does not exist so rename and move to folder
-						if (!File.Exists(lengthFolder + "\\" + audio.newFileName + ext))
+						if (!File.Exists(newFilePath))
 						{
+							// Store new path for undo functionality
+							audio.newfullPath = newFilePath;
+
 							//Rename file and move to new folder
-							File.Move(currentFile, lengthFolder + "\\" + audio.newFileName + ext);
+							File.Move(currentFile, newFilePath);
 						}
 					}
 					else
@@ -328,11 +355,15 @@ namespace StemWizardPro2
 							{
 								Directory.CreateDirectory(lengthFolder);
 							}
+							string newFilePath = lengthFolder + "\\" + audio.newFileName + ext;
 							//File does not exist so rename and move to folder
-							if (!File.Exists(lengthFolder + "\\" + audio.newFileName + ext))
+							if (!File.Exists(newFilePath))
 							{
+								// Store new path for undo functionality
+								audio.newfullPath = newFilePath;
+
 								//Rename file and move to new folder
-								File.Move(currentFile, lengthFolder + "\\" + audio.newFileName + ext);
+								File.Move(currentFile, newFilePath);
 							}
 						}
 
@@ -343,6 +374,37 @@ namespace StemWizardPro2
 
 		public static List<string> ChannelList = new List<string>();		
 
+		public static StatusMessage UndoExecute()
+		{
+			if (FileNameDict.Count < 1) return new StatusMessage(false, "File history doesn't exist.");
+
+			foreach(AudioData audio in UniqueFileNameList)
+			{
+				if (File.Exists(audio.originalfullPath)) return new StatusMessage(false, $"A file named {audio.originalFileName} already exists at {audio.originalfullPath}.");
+			}
+
+			foreach(AudioData audio in UniqueFileNameList)
+			{
+				string fileToUndo = Path.GetFileName(audio.newfullPath);
+				File.Move(fileToUndo, audio.originalfullPath);
+            }
+			FileNameDict.Clear();
+			return new StatusMessage(false, $"Undo was successful!");
+		}
+    }
+
+    public class StatusMessage
+    {
+		public bool success;
+		public string message;
+
+		public StatusMessage(bool pass, string details)
+		{
+			success = pass;
+			message = details;
+        }
 	}
 
 }
+
+

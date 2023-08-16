@@ -6,10 +6,11 @@ namespace StemWizardPro2
 {
 	public class AudioData
 	{
-		public string fullPath;
+		public string originalfullPath;
+		public string newfullPath;
 		public PCMType pcmType;
 
-		public string fileName;
+		public string originalFileName;
 		public string newFileName;
 
 		public int UMID;
